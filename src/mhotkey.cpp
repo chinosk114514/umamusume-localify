@@ -19,9 +19,9 @@ namespace MHotkey{
         msgBox.dwStyle = MB_USERICON | MB_OK | MB_SYSTEMMODAL;
         msgBox.hInstance = NULL;
         msgBox.hwndOwner = NULL;
-        msgBox.lpszCaption = "²âÊÔ±êÌâ";
+        msgBox.lpszCaption = "æµ‹è¯•æ ‡é¢˜";
         msgBox.lpszIcon = MAKEINTRESOURCE(JI_BITMAP0);
-        msgBox.lpszText = "²âÊÔÄÚÈİ";
+        msgBox.lpszText = "æµ‹è¯•å†…å®¹";
 
         MessageBoxIndirect(&msgBox);
     }
@@ -60,11 +60,11 @@ namespace MHotkey{
                 if (CTRL_key != 0 && key == hotk)
                 {
                     MHotkey::is_uma = !MHotkey::is_uma;
-                    auto pt = MHotkey::is_uma ? "ÒÑÇĞ»»Îª: ÎŞÊÓ»»ĞĞ·ûÓÅÏÈ(ÊúÆÁÍÆ¼ö)" : "ÒÑÇĞ»»Îª: Ê¹ÓÃÔ­»»ĞĞÅäÖÃÓÅÏÈ(ºáÆÁÍÆ¼ö)";
+                    auto pt = MHotkey::is_uma ? "å·²åˆ‡æ¢ä¸º: æ— è§†æ¢è¡Œç¬¦ä¼˜å…ˆ(ç«–å±æ¨è)" : "å·²åˆ‡æ¢ä¸º: ä½¿ç”¨åŸæ¢è¡Œé…ç½®ä¼˜å…ˆ(æ¨ªå±æ¨è)";
                     // showmessagebox();
                     MessageBox(NULL, 
                         pt,
-                        "ÎÄ±¾ÏÔÊ¾ÅäÖÃ Modified by 'sunset",
+                        "æ–‡æœ¬æ˜¾ç¤ºé…ç½® Modified by 'sunset",
                         MB_OK|MB_SYSTEMMODAL);
                 }
 

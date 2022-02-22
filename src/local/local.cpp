@@ -9,6 +9,7 @@ namespace local
 {
 	namespace
 	{
+		std::mutex db_lock;
 		unordered_map<size_t, string> text_db;
 		std::vector<size_t> str_list;
 	}
@@ -25,13 +26,22 @@ namespace local
 		return result;
 	}
 
+	void unlocked_load_textdb(const vector<string>* dicts);
+
 	void reload_textdb(const vector<string>* dicts)
 	{
+		std::unique_lock lock(db_lock);
 		text_db.clear();
-		load_textdb(dicts);
+		unlocked_load_textdb(dicts);
 	}
 
-	void load_textdb(const vector<string> *dicts)
+	void load_textdb(const vector<string>* dicts)
+	{
+		std::unique_lock lock(db_lock);
+		unlocked_load_textdb(dicts);
+	}
+
+	void unlocked_load_textdb(const vector<string> *dicts)
 	{
 		for (auto dict : *dicts)
 		{
@@ -68,6 +78,7 @@ namespace local
 
 	bool localify_text(size_t hash, string** result)
 	{
+		std::unique_lock lock(db_lock);
 		if (text_db.contains(hash))
 		{
 			*result = &text_db[hash];
@@ -93,19 +104,19 @@ namespace local
 	wstring line_break_replace(Il2CppString* text) {
 		wstring _ret = L"";
 		wstring tmp = text->start_char;
-		bool space_flag = false;  // ∫ÛΩ”ø’∏Ò
+		bool space_flag = false;  // ÂêéÊé•Á©∫Ê†º
 		
 		for (int i = 0; i < tmp.length(); i++) {
 			if (tmp[i] != L'\n' && tmp[i] != L'\r') {
 				_ret += tmp[i];
 			}
 			else if (space_flag){
-				_ret += L'°°';
+				_ret += L'„ÄÄ';
 			}
 
 			space_flag = false;
-			if (tmp[i] == L'£°' || tmp[i] == L'£ø') {
-				space_flag = true;  // ±Íº«ø’∏Ò
+			if (tmp[i] == L'ÔºÅ' || tmp[i] == L'Ôºü') {
+				space_flag = true;  // Ê†áËÆ∞Á©∫Ê†º
 			}
 		}
 
@@ -119,9 +130,9 @@ namespace local
 		wstring result_without_lb = line_break_replace(str);
 		
 		/*
-		if (wcscmp(L"§Ô§Ô§Ô§√°¢§…§§§∆§…§§§∆§ß©`£°£°", str->start_char) == 0) {
-			printf("LOOOOOOOOOOOOOOOOOOOOOOG: √¸÷– - '%ls'\n", str->start_char);
-			// wchar_t rr[] = L"Õ€, zhemeniuibi";
+		if (wcscmp(L"„Çè„Çè„Çè„Å£„ÄÅ„Å©„ÅÑ„Å¶„Å©„ÅÑ„Å¶„Åá„ÉºÔºÅÔºÅ", str->start_char) == 0) {
+			printf("LOOOOOOOOOOOOOOOOOOOOOOG: ÂëΩ‰∏≠ - '%ls'\n", str->start_char);
+			// wchar_t rr[] = L"Âìá, zhemeniuibi";
 			string rr = "wa, zhemeniuibi";
 			return il2cpp_string_new(rr.data());
 		}
@@ -140,7 +151,7 @@ namespace local
 		}
 		
 		/*
-		string nb = "§Ô§Ô§Ô§√°¢§…§§§∆§…§§§∆§ß©`£°£°";
+		string nb = "„Çè„Çè„Çè„Å£„ÄÅ„Å©„ÅÑ„Å¶„Å©„ÅÑ„Å¶„Åá„ÉºÔºÅÔºÅ";
 		// nb.c_str(); // char*
 
 		size_t len = strlen(nb.c_str()) + 1;
@@ -150,7 +161,7 @@ namespace local
 
 		mbstowcs_s(&converted, WStr, len, nb.c_str(), _TRUNCATE);
 
-		// auto test1 = std::hash<wstring> {}(L"§Ô§Ô§Ô§√°¢§…§§§∆§…§§§∆§ß©`£°£°");
+		// auto test1 = std::hash<wstring> {}(L"„Çè„Çè„Çè„Å£„ÄÅ„Å©„ÅÑ„Å¶„Å©„ÅÑ„Å¶„Åá„ÉºÔºÅÔºÅ");
 		auto test1 = std::hash<wstring> {}(WStr);
 		printf("haha: %zu\n", test1);
 		*/
@@ -160,12 +171,12 @@ namespace local
 
 		if (local::localify_text(hash_without_lb, &result))
 		{
-			t_without_lp = il2cpp_string_new(result->data());  // "∫ˆ¬‘ªª––∑˚" ƒ£ ΩµƒŒƒ±æ
+			t_without_lp = il2cpp_string_new(result->data());  // "ÂøΩÁï•Êç¢Ë°åÁ¨¶" Ê®°ÂºèÁöÑÊñáÊú¨
 		}
 
 		if (local::localify_text(hash_with_lb, &result))
 		{
-			t_with_lp = il2cpp_string_new(result->data());  // ‘≠Œƒ±æ
+			t_with_lp = il2cpp_string_new(result->data());  // ÂéüÊñáÊú¨
 		}
 
 		if (t_with_lp != NULL && t_without_lp != NULL) {
@@ -181,7 +192,7 @@ namespace local
 			
 			/*
 			if (hash == 13202430879488954923) {
-				printf("LOOOOOOOOOOOOOOOOOOOOOOG: √¸÷–id - '%ls'\n", str->start_char);
+				wprintf(L"LOOOOOOOOOOOOOOOOOOOOOOG: ÂëΩ‰∏≠id - '%ls'\n", str->start_char);
 
 				string rr = "zhemeniuibi";
 				string* ret = &rr;
@@ -196,7 +207,7 @@ namespace local
 				logger::write_entry(hash_without_lb, result_without_lb);
 			}
 			
-			// printf("Œ¥√¸÷–: %ls(%zu)\n", str->start_char, hash);
+			// wprintf(L"Êú™ÂëΩ‰∏≠: %ls(%zu)\n", str->start_char, hash);
 
 		}
 

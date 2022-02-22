@@ -114,7 +114,7 @@ namespace
 	void* wndproc_orig = nullptr;
 	LRESULT wndproc_hook(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
-		/*  ×¢ÊÍµôÁËÆÁÄ»¾Í²»´íÎ»ÁË, ÏÈÔİÊ±ÕâÑù, ¿´¿´ÓĞÃ»ÓĞBUG(
+		/*  æ³¨é‡Šæ‰äº†å±å¹•å°±ä¸é”™ä½äº†, å…ˆæš‚æ—¶è¿™æ ·, çœ‹çœ‹æœ‰æ²¡æœ‰BUG(
 		if (uMsg == WM_SIZING)
 		{
 			RECT* rect = reinterpret_cast<RECT*>(lParam);
@@ -558,7 +558,7 @@ namespace
 	}
 
 	/*
-	ÊÇ·ñÎªºáÆÁ
+	æ˜¯å¦ä¸ºæ¨ªå±
 	*/
 	bool is_landscape() {
 		int www, hhh;
@@ -576,21 +576,21 @@ void _set_u_stat(bool s) {
 
 
 void change_type() {
-	bool last_is_landspace = true;  // ÉÏ´Î×´Ì¬ÊÇ·ñÎªºáÆÁ
-	bool now_is_landspace = false;  // µ±Ç°ÊÇ·ñÎªºáÆÁ
+	bool last_is_landspace = true;  // ä¸Šæ¬¡çŠ¶æ€æ˜¯å¦ä¸ºæ¨ªå±
+	bool now_is_landspace = false;  // å½“å‰æ˜¯å¦ä¸ºæ¨ªå±
 	int now_w, now_h;
-	// int last_land_w = -1, last_land_h = -1;  // ÉÏ´ÎºáÆÁ·Ö±æÂÊ
-	// int last_vert_w = -1, last_vert_h = -1;  // ÉÏ´ÎÊúÆÁ·Ö±æÂÊ
+	// int last_land_w = -1, last_land_h = -1;  // ä¸Šæ¬¡æ¨ªå±åˆ†è¾¨ç‡
+	// int last_vert_w = -1, last_vert_h = -1;  // ä¸Šæ¬¡ç«–å±åˆ†è¾¨ç‡
 
 	now_w = gallop_get_screenwidth_hook();
 	now_h = gallop_get_screenheight_hook();
 
 	if (!autoChangeLineBreakMode) {
-		printf("Î´¼¤»î: ºáÊúÆÁ×Ô¶¯ÇĞ»»Ä£Ê½\n");
+		std::wprintf(L"æœªæ¿€æ´»: æ¨ªç«–å±è‡ªåŠ¨åˆ‡æ¢æ¨¡å¼\n");
 		// return;
 	}
 	else {
-		printf("ÒÑ¼¤»î: ºáÊúÆÁ×Ô¶¯ÇĞ»»Ä£Ê½\n");
+		std::wprintf(L"å·²æ¿€æ´»: æ¨ªç«–å±è‡ªåŠ¨åˆ‡æ¢æ¨¡å¼\n");
 	}
 
 	Vector3_t vt;
@@ -612,21 +612,21 @@ void change_type() {
 
 		if (now_is_landspace != last_is_landspace) {
 			if (now_is_landspace) {
-				_set_u_stat(false);  // ºáÆÁÄ£Ê½
+				_set_u_stat(false);  // æ¨ªå±æ¨¡å¼
 				// if (last_land_w != -1 && last_land_h != -1 && !g_auto_fullscreen) {
-				//	printf("ÉÏ´ÎºáÆÁ·Ö±æÂÊ: %d, %d\n", last_land_w, last_land_h);
+				//	std::wprintf(L"ä¸Šæ¬¡æ¨ªå±åˆ†è¾¨ç‡: %d, %d\n", last_land_w, last_land_h);
 				//	//set_resolution_hook(last_land_w, last_land_h, false);
 				//}
 			}
 			else {
-				_set_u_stat(true);  // ÊúÆÁÄ£Ê½
+				_set_u_stat(true);  // ç«–å±æ¨¡å¼
 				//if (last_vert_w != -1 && last_vert_h != -1) {
-				//	printf("ÉÏ´ÎÊúÆÁ·Ö±æÂÊ: %d, %d\n", last_vert_w, last_vert_h);
+				//	std::wprintf(L"ä¸Šæ¬¡ç«–å±åˆ†è¾¨ç‡: %d, %d\n", last_vert_w, last_vert_h);
 				//	//set_resolution_hook(last_vert_w, last_vert_h, false);
 				//}
 			}
 
-			printf(now_is_landspace ? "ÒÑÇĞ»»µ½ºáÆÁ\n" : "ÒÑÇĞ»»µ½ÊúÆÁ\n");
+			std::wprintf(now_is_landspace ? L"å·²åˆ‡æ¢åˆ°æ¨ªå±\n" : L"å·²åˆ‡æ¢åˆ°ç«–å±\n");
 			last_is_landspace = now_is_landspace;
 		}
 
