@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <map>
 #include <thread>
+#include <variant>
 
 #include <MinHook.h>
 
@@ -39,7 +40,29 @@ extern int g_max_fps;
 extern bool g_unlock_size;
 extern float g_ui_scale;
 extern float g_aspect_ratio;
-extern bool g_replace_font;
+
+extern std::string g_extra_assetbundle_path;
+
+struct UseOriginalFont
+{
+};
+
+struct UseDefaultFont
+{
+};
+
+struct UseCustomFont
+{
+	std::string FontPath;
+};
+
+extern std::variant<UseOriginalFont, UseDefaultFont, UseCustomFont> g_replace_font;
+extern int g_custom_font_size_offset;
+extern int g_custom_font_style;
+extern float g_custom_font_linespacing;
+extern bool g_replace_assets;
+extern bool g_asset_load_log;
+
 extern bool g_auto_fullscreen;
 extern std::unique_ptr<AutoUpdate::IAutoUpdateService> g_auto_update_service;
 extern std::string g_static_dict_path;
