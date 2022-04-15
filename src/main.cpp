@@ -21,7 +21,13 @@ int g_max_fps = -1;
 bool g_unlock_size = false;
 float g_ui_scale = 1.0f;
 float g_aspect_ratio = 16.f / 9.f;
-bool g_replace_font = true;
+std::string g_extra_assetbundle_path;
+std::variant<UseOriginalFont, UseDefaultFont, UseCustomFont> g_replace_font;
+int g_custom_font_size_offset;
+int g_custom_font_style;
+float g_custom_font_linespacing;
+bool g_replace_assets;
+bool g_asset_load_log;
 bool g_auto_fullscreen = true;
 std::unique_ptr<AutoUpdate::IAutoUpdateService> g_auto_update_service{};
 std::string g_static_dict_path;
@@ -72,6 +78,7 @@ namespace
 		versionStream.seekg(0);
 		std::string version(length, 0);
 		versionStream.read(version.data(), length);
+		std::erase_if(version, [locale = std::locale("")](char ch) { return std::isblank(ch, locale); });
 		return version;
 	}
 
@@ -337,7 +344,39 @@ namespace
 			g_max_fps = document["maxFps"].GetInt();
 			g_unlock_size = document["unlockSize"].GetBool();
 			g_ui_scale = document["uiScale"].GetFloat();
-			g_replace_font = document["replaceFont"].GetBool();
+
+			const auto& extraAssetBundlePath = document["extraAssetBundlePath"];
+			if (extraAssetBundlePath.IsString())
+			{
+				g_extra_assetbundle_path = extraAssetBundlePath.GetString();
+			}
+
+			const auto& replaceFont = document["replaceFont"];
+			if (replaceFont.GetBool())
+			{
+				const auto& customFontPath = document["customFontPath"];
+				if (customFontPath.IsString())
+				{
+					assert(!g_extra_assetbundle_path.empty() && "extraAssetBundlePath should be specified to use custom font");
+					g_replace_font = UseCustomFont{ .FontPath = customFontPath.GetString() };
+				}
+				else
+				{
+					g_replace_font = UseDefaultFont{};
+				}
+
+				g_custom_font_size_offset = document["customFontSizeOffset"].GetInt();
+				g_custom_font_style = document["customFontStyle"].GetInt();
+				g_custom_font_linespacing = document["customFontLinespacing"].GetFloat();
+			}
+			else
+			{
+				g_replace_font = UseOriginalFont{};
+			}
+
+			g_replace_assets = document["replaceAssets"].GetBool();
+			g_asset_load_log = document["assetLoadLog"].GetBool();
+
 			g_auto_fullscreen = document["autoFullscreen"].GetBool();
 			line_break_hotkey = document["LineBreakHotKey"].GetString()[0];
 			autoChangeLineBreakMode = document["autoChangeLineBreakMode"].GetBool();
@@ -671,11 +710,15 @@ namespace
 
 					std::wprintf(L"New version %ls downloading...\n", latestRelease->Version.c_str());
 
+				RetryDownload:
 					AutoUpdate::DownloadFile(latestRelease->Uri, updateTempFile).get();
 
 					std::wprintf(L"New version %ls downloaded! Updating...\n", latestRelease->Version.c_str());
 
 					const std::filesystem::path tmpPath = AutoUpdateTmpPath;
+
+					// 已完成下载解压
+					bool prepareUpdateFilesCompleted = false;
 
 					try
 					{
@@ -725,7 +768,7 @@ namespace
 							// 更新文件
 							if (shouldUpdateVersionDll)
 							{
-								std::filesystem::copy_file(newVersionDllPath, VersionDllTmp);
+								std::filesystem::copy_file(newVersionDllPath, VersionDllTmp, std::filesystem::copy_options::overwrite_existing);
 							}
 							std::filesystem::rename(newConfigPath, ConfigJson);
 							std::filesystem::rename(tmpPath, LocalizedDataPath);
@@ -754,8 +797,7 @@ tasklist | find /i "umamusume.exe" >NUL
 if %ERRORLEVEL% == 0 timeout /t 1 /nobreak & goto waitloop
 
 move /y version.dll.tmp version.dll
-del SelfUpdate.bat
-)";
+del SelfUpdate.bat)";
 								std::ofstream selfUpdateBatchFile("SelfUpdate.bat");
 								if (selfUpdateBatchFile.is_open())
 								{
@@ -769,11 +811,12 @@ del SelfUpdate.bat
 									if (CreateProcessW(NULL, commandLine, NULL, NULL, FALSE, 0, NULL, NULL, &startupInfo, &processInfo))
 									{
 										CloseHandle(processInfo.hThread);
-										CloseHandle(processInfo.hProcess);
 
-										std::wprintf(L"Exiting process for self-updating...\n");
-										TerminateProcess(GetCurrentProcess(), 0);
+										std::wprintf(L"Waiting for terminating...\n");
+										WaitForSingleObject(processInfo.hProcess, INFINITE);
 										// 应不可达
+										CloseHandle(processInfo.hProcess);
+										std::exit(0);
 									}
 									else
 									{
@@ -794,7 +837,90 @@ del SelfUpdate.bat
 					}
 					catch (const std::exception& e)
 					{
-						std::printf("Exception %s occurred during updating, try rolling back...\n", e.what());
+						std::printf("Exception %s occurred during updating, try force update...\n", e.what());
+
+						if (!prepareUpdateFilesCompleted)
+						{
+							const auto userResponse = MessageBoxW(NULL, L"无法解压更新文件，更新文件可能已损坏，要重新尝试下载吗？\n也可以尝试从官网直接下载最新安装包覆盖", L"翻译插件自动更新", MB_YESNO);
+							if (userResponse == IDYES)
+							{
+								goto RetryDownload;
+							}
+							return;
+						}
+						else
+						{
+							const auto userResponse = MessageBoxW(NULL, L"无法更新文件，可能文件当前被占用，要强制关闭程序覆盖更新吗？也可取消自动更新", L"翻译插件自动更新", MB_YESNOCANCEL);
+							if (userResponse == IDCANCEL)
+							{
+								return;
+							}
+
+							if (userResponse == IDYES)
+							{
+								constexpr char forceSelfUpdateBatchContent[] = R"(
+@echo off
+setlocal
+
+taskkill /im "umamusume.exe" >NUL
+
+:waitloop
+
+tasklist | find /i "umamusume.exe" >NUL
+if %ERRORLEVEL% == 0 timeout /t 1 /nobreak & goto waitloop
+
+cd .
+
+if not exist old_localized_data (
+	move /y localized_data old_localized_data
+	if not %ERRORLEVEL% == 0 (
+		start cmd /c "echo 文件被占用，无法替换，请手动解压覆盖游戏根目录的 update.zip 文件 && pause && start %cd%"
+		exit
+	)
+	move /y config.json old_localized_data\config.json
+	copy /y version.dll old_localized_data\version.dll
+)
+
+if exist UpdateTemp (
+	move /y UpdateTemp\version.dll version.dll.tmp
+	move /y UpdateTemp\config.json config.json
+	move /y UpdateTemp localized_data
+)
+move /y version.dll.tmp version.dll
+if not %ERRORLEVEL% == 0 (
+	start cmd /c "echo version.dll 文件被占用，无法替换，请手动覆盖 version.dll.tmp 到 version.dll && pause && start %cd%"
+	exit
+)
+rd /s /q old_localized_data
+del update.zip
+echo %1> version.txt
+del SelfUpdate.bat)";
+
+								std::ofstream selfUpdateBatchFile("SelfUpdate.bat");
+								if (selfUpdateBatchFile.is_open())
+								{
+									// 不写出结尾 0
+									selfUpdateBatchFile.write(forceSelfUpdateBatchContent, std::size(forceSelfUpdateBatchContent) - 1);
+									selfUpdateBatchFile.close();
+
+									std::wstring commandLine = std::format(L"cmd.exe /c SelfUpdate.bat {}", latestRelease->Version);
+									STARTUPINFOW startupInfo{ .cb = sizeof(STARTUPINFOW) };
+									PROCESS_INFORMATION processInfo{};
+									if (CreateProcessW(NULL, commandLine.data(), NULL, NULL, FALSE, 0, NULL, NULL, &startupInfo, &processInfo))
+									{
+										CloseHandle(processInfo.hThread);
+
+										std::wprintf(L"Waiting for terminating...\n");
+										WaitForSingleObject(processInfo.hProcess, INFINITE);
+										// 应不可达
+										CloseHandle(processInfo.hProcess);
+										std::exit(0);
+									}
+								}
+
+								std::wprintf(L"Cannot write or execute self update script, rolling back...\n");
+							}
+						}
 
 						try
 						{
@@ -869,8 +995,26 @@ int __stdcall DllMain(HINSTANCE, DWORD reason, LPVOID)
 
 			init_hook();
 
+			std::mutex mutex;
+			std::condition_variable cond;
+			std::atomic<bool> hookIsReady(false);
+			g_on_hook_ready = [&]
+			{
+				hookIsReady.store(true, std::memory_order_release);
+				cond.notify_one();
+			};
+
+			// 依赖检查游戏版本的指针加载，因此在 hook 完成后再加载翻译数据
+			std::unique_lock lock(mutex);
+			cond.wait(lock, [&] {
+				return hookIsReady.load(std::memory_order_acquire);
+			});
 			if (g_enable_console)
-				start_console();
+			{
+				auto _ = freopen("CONOUT$", "w+t", stdout);
+				_ = freopen("CONOUT$", "w", stderr);
+				_ = freopen("CONIN$", "r", stdin);
+			}
 
 			std::mutex mutex;
 			std::condition_variable cond;
